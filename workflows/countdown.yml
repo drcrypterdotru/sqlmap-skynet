@@ -1,0 +1,114 @@
+name: README 24h Countdown (Auto Inject)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset:
+        description: "Reset countdown to 24 hours from now"
+        required: false
+        default: "true"
+  schedule:
+    - cron: "0 * * * *"   # every hour
+
+permissions:
+  contents: write
+
+concurrency:
+  group: readme-countdown
+  cancel-in-progress: false
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update countdown in README (auto-add section if missing)
+        shell: bash
+        env:
+          RESET_INPUT: ${{ github.event.inputs.reset }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timedelta, timezone
+
+          STATE_PATH = ".github/countdown_state.json"
+          README_PATH = "README.md"
+
+          START_MARK = "<!-- COUNTDOWN:START -->"
+          END_MARK   = "<!-- COUNTDOWN:END -->"
+
+          SECTION_TITLE = "## ⏳ Countdown"
+          DEFAULT_SECTION = (
+            f"\n\n{SECTION_TITLE}\n\n"
+            f"{START_MARK}\n"
+            f"(loading...)\n"
+            f"{END_MARK}\n"
+          )
+
+          now = datetime.now(timezone.utc)
+
+          # read or create README (DO NOT overwrite existing content)
+          if not os.path.exists(README_PATH):
+            with open(README_PATH, "w", encoding="utf-8") as f:
+              f.write("# Project\n\n")
+          text = open(README_PATH, "r", encoding="utf-8").read()
+
+          # if markers not found, auto-append section to the end
+          if (START_MARK not in text) or (END_MARK not in text):
+            text = text.rstrip() + DEFAULT_SECTION
+            open(README_PATH, "w", encoding="utf-8").write(text)
+
+          # load or init state
+          state = None
+          if os.path.exists(STATE_PATH):
+            try:
+              state = json.load(open(STATE_PATH, "r", encoding="utf-8"))
+            except Exception:
+              state = None
+
+          reset_input = (os.environ.get("RESET_INPUT") or "false").lower() == "true"
+
+          if (not state) or reset_input:
+            target = now + timedelta(hours=24)
+            state = {"target_utc": target.isoformat()}
+            os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+            json.dump(state, open(STATE_PATH, "w", encoding="utf-8"), indent=2)
+
+          target = datetime.fromisoformat(state["target_utc"])
+          remaining = target - now
+          if remaining.total_seconds() < 0:
+            remaining = timedelta(seconds=0)
+
+          total_seconds = int(remaining.total_seconds())
+          hours = total_seconds // 3600
+          minutes = (total_seconds % 3600) // 60
+          seconds = total_seconds % 60
+
+          md = (
+            f"⏳ **Time left:** `{hours:02d}h {minutes:02d}m {seconds:02d}s`  \n"
+            f"🕒 **Ends (UTC):** `{target.strftime('%Y-%m-%d %H:%M:%S')}`"
+          )
+
+          text = open(README_PATH, "r", encoding="utf-8").read()
+          before = text.split(START_MARK)[0]
+          after  = text.split(END_MARK)[1]
+          new_text = before + START_MARK + "\n" + md + "\n" + END_MARK + after
+          open(README_PATH, "w", encoding="utf-8").write(new_text)
+
+          print("README countdown updated.")
+          PY
+
+      - name: Commit & push (only if changed)
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md .github/countdown_state.json
+          git commit -m "Update README countdown"
+          git push
