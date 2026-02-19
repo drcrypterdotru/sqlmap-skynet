@@ -11,7 +11,6 @@ A modern **SQLMap Autonomous by AI** offensive/defensive assistant with a clean 
 - 🔔 **Telegram/Discord Alerts** (success hits + key evidence)
 - 🧵 **Threading & Stability** (better queue + retry + verbose debug `-debug`)
 
-## ⏳ Countdown
-<!-- COUNTDOWN:START -->
-(loading...)
-<!-- COUNTDOWN:END -->
+### 🖼️ Screenshots
+![SKYNET SQLMap Screenshot 1](screenshots/1.png)
+![SKYNET SQLMap Screenshot 2](screenshots/2.png)
