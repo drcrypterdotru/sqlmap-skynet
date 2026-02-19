@@ -13,4 +13,4 @@ A modern **SQLMap Autonomous by AI** offensive/defensive assistant with a clean 
 
 ### 🖼️ Screenshots
 ![SKYNET SQLMap Screenshot 1](screenshots/proof_1.png)
-![SKYNET SQLMap Screenshot 2](screenshots/proof_1.png)
+![SKYNET SQLMap Screenshot 2](screenshots/proof_2.png)
