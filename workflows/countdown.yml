@@ -8,7 +8,7 @@ on:
         required: false
         default: "true"
   schedule:
-    - cron: "0 * * * *"   # every hour
+    - cron: "*/1 * * * *"   # every 1 minute
 
 permissions:
   contents: write
