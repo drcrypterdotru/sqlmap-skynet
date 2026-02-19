@@ -12,5 +12,5 @@ A modern **SQLMap Autonomous by AI** offensive/defensive assistant with a clean 
 - 🧵 **Threading & Stability** (better queue + retry + verbose debug `-debug`)
 
 ### 🖼️ Screenshots
-![SKYNET SQLMap Screenshot 1](screenshots/1.png)
-![SKYNET SQLMap Screenshot 2](screenshots/2.png)
+![SKYNET SQLMap Screenshot 1](screenshots/proof_1.png)
+![SKYNET SQLMap Screenshot 2](screenshots/proof_1.png)
