@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLMAP Skynet by DRCrypter.ru</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --neon-green: #00ff41;
+            --neon-cyan: #00ffff;
+            --dark-green: #003b00;
+            --dark-cyan: #003b3b;
+            --yellow: #ffff00;
+            --red: #ff0040;
+            --orange: #ff6600;
+            --purple: #bf00ff;
+            --dark-bg: #000000;
+            --panel-bg: #0a0a0a;
+            --glass-bg: rgba(10, 10, 10, 0.95);
+            --glass-border: rgba(0, 255, 65, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--dark-bg);
+            color: #e0e0e0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1920px;
+            margin: 0 auto;
+            padding: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 15px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan), var(--neon-green));
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-green);
+            font-size: 28px;
+            text-shadow: 0 0 20px var(--neon-green);
+            letter-spacing: 4px;
+        }
+
+        .header .subtitle {
+            color: var(--neon-cyan);
+            font-size: 11px;
+            margin-top: 5px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .header .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #666;
+            flex-wrap: wrap;
+        }
+
+        .header .stats-row span { color: var(--neon-green); }
+
+        .controls {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        input, select, textarea {
+            background: rgba(0, 20, 0, 0.8);
+            border: 1px solid var(--dark-green);
+            color: var(--neon-green);
+            padding: 8px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        textarea { min-height: 60px; resize: vertical; }
+
+        button {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 255, 255, 0.1));
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 8px 16px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before { left: 100%; }
+
+        button:hover {
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+        }
+
+        button.danger {
+            border-color: var(--red);
+            color: var(--red);
+            background: linear-gradient(135deg, rgba(255, 0, 64, 0.1), rgba(255, 0, 64, 0.05));
+        }
+
+        button.danger:hover { box-shadow: 0 0 30px rgba(255, 0, 64, 0.4); }
+
+        button.active {
+            background: rgba(0, 255, 65, 0.3);
+            box-shadow: 0 0 20px var(--neon-green);
+        }
+
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* IMPROVED GRID LAYOUT */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr 300px;
+            gap: 15px;
+            align-items: start;
+        }
+
+        @media (max-width: 1400px) {
+            .main-grid { grid-template-columns: 280px 1fr 260px; }
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .left-col, .right-col { display: none; }
+            .center-col { order: 1; display: block; }
+        }
+
+        /* IMPROVED PANEL STYLING */
+        .panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: auto;
+            min-height: 200px;
+            margin-bottom: 15px;
+        }
+
+        .panel-header {
+            background: linear-gradient(90deg, rgba(0, 255, 65, 0.15), rgba(0, 255, 255, 0.1));
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--glass-border);
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-cyan);
+            font-size: 12px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            letter-spacing: 1px;
+        }
+
+        .panel-badge {
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(102, 102, 102, 0.3);
+            border: 1px solid #666;
+            color: #ccc;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .panel-badge.active {
+            background: rgba(0, 255, 65, 0.3);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .panel-badge.warning {
+            background: rgba(255, 170, 0, 0.2);
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+
+        .panel-badge.cyan {
+            background: rgba(0, 255, 255, 0.2);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+
+        .panel-content {
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+            max-height: 400px;
+        }
+
+        /* IMPROVED SYSTEM METRICS - STABLE GRID */
+        .metrics-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .metric-box {
+            background: rgba(0, 20, 0, 0.6);
+            border: 1px solid var(--dark-green);
+            border-radius: 6px;
+            padding: 15px 10px;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--neon-green);
+            opacity: 0.3;
+        }
+
+        .metric-box:hover {
+            border-color: var(--neon-cyan);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 65, 0.1);
+        }
+
+        .metric-box.cyan::before { background: var(--neon-cyan); }
+        .metric-box.cyan { border-color: var(--dark-cyan); }
+        .metric-box.cyan:hover { border-color: var(--neon-cyan); }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--neon-green);
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+            transition: all 0.2s;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+
+        .metric-value.cyan {
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .metric-value.changed {
+            color: var(--yellow) !important;
+            transform: scale(1.15);
+            text-shadow: 0 0 20px rgba(255, 255, 0, 0.5);
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 10px;
+            padding: 0 5px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(0, 30, 0, 0.8);
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid var(--dark-green);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+            transition: width 0.5s ease;
+            border-radius: 3px;
+        }
+
+        .terminal {
+            background: rgba(0, 5, 0, 0.95);
+            color: #e0e0e0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            padding: 12px;
+            height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border: 1px solid var(--dark-green);
+            border-radius: 4px;
+        }
+
+        .terminal-line {
+            padding: 2px 0;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .line-success { color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green); }
+        .line-error { color: var(--red); }
+        .line-warning { color: var(--yellow); }
+        .line-info { color: #888; }
+        .line-ai { color: var(--purple); }
+        .line-bypass { color: var(--orange); }
+        .line-prompt { color: var(--neon-cyan); text-shadow: 0 0 5px var(--neon-cyan); }
+        .line-target { color: #00ffaa; }
+        .line-rag { color: #ff66ff; }
+        .line-learning { color: #66ff66; }
+
+        .card {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.05), rgba(0, 255, 255, 0.03));
+            border-left: 3px solid var(--neon-green);
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .card:hover {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 255, 255, 0.06));
+            transform: translateX(3px);
+        }
+
+        .card.error { border-left-color: var(--red); background: linear-gradient(135deg, rgba(255, 0, 64, 0.05), rgba(255, 0, 64, 0.03)); }
+        .card.warning { border-left-color: var(--yellow); background: linear-gradient(135deg, rgba(255, 255, 0, 0.05), rgba(255, 255, 0, 0.03)); }
+        .card.cyan { border-left-color: var(--neon-cyan); background: linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(0, 255, 255, 0.03)); }
+        .card.rag { border-left-color: var(--purple); background: linear-gradient(135deg, rgba(191, 0, 255, 0.05), rgba(191, 0, 255, 0.03)); }
+
+        .card-title {
+            color: var(--neon-cyan);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .card-content { color: #e0e0e0; font-size: 12px; word-break: break-word; }
+
+        /* Target Hits Panel */
+        .target-hits-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .target-hit {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 170, 0, 0.08);
+            border-left: 3px solid var(--orange);
+            border-radius: 4px;
+            font-size: 11px;
+            animation: slideIn 0.3s ease;
+            transition: all 0.2s;
+        }
+
+        .target-hit:hover {
+            background: rgba(255, 170, 0, 0.15);
+            transform: translateX(5px);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .target-hit .icon { font-size: 16px; }
+        .target-hit .path { flex: 1; color: #fff; font-family: monospace; font-size: 11px; }
+        .target-hit .keywords {
+            font-size: 9px;
+            color: var(--orange);
+            background: rgba(255, 170, 0, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #555;
+            padding: 30px;
+            font-style: italic;
+            font-size: 11px;
+        }
+
+        /* Settings & File Browser Overlays */
+        .settings-overlay, .file-browser-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1999;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+
+        .settings-overlay.active, .file-browser-overlay.active { display: block; }
+
+        .settings-panel, .file-browser {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            padding: 25px;
+            z-index: 2000;
+            display: none;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(0, 255, 65, 0.2);
+        }
+
+        .settings-panel.active, .file-browser.active { display: block; }
+
+        .settings-title {
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 16px;
+            text-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .setting-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid var(--dark-green);
+            background: rgba(0, 20, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        .setting-label {
+            color: var(--neon-green);
+            font-size: 12px;
+            margin-bottom: 8px;
+            display: block;
+            font-weight: bold;
+        }
+
+        .setting-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 10px;
+            font-size: 11px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--neon-green); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        .backend-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .backend-option {
+            padding: 8px 15px;
+            border: 1px solid var(--dark-green);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 11px;
+        }
+
+        .backend-option.active {
+            background: rgba(0, 255, 65, 0.2);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        .engine-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #333;
+        }
+
+        .status-dot.active {
+            background: var(--neon-green);
+            box-shadow: 0 0 5px var(--neon-green);
+        }
+
+        .no-key-badge {
+            font-size: 8px;
+            color: var(--neon-cyan);
+            border: 1px solid var(--neon-cyan);
+            padding: 2px 6px;
+            margin-left: 5px;
+            border-radius: 3px;
+        }
+
+        .settings-buttons {
+            text-align: center;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .settings-buttons button { min-width: 120px; }
+
+        #search-stats {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid var(--dark-green);
+            padding-top: 15px;
+            line-height: 1.8;
+        }
+
+        /* File Browser Specific */
+        .file-browser-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--dark-green);
+        }
+
+        .file-browser-title {
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+        }
+
+        .file-browser-path {
+            color: var(--neon-green);
+            font-size: 11px;
+            margin-bottom: 15px;
+            padding: 8px;
+            background: rgba(0, 20, 0, 0.5);
+            border: 1px solid var(--dark-green);
+        }
+
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--dark-green);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover { background: rgba(0, 255, 65, 0.1); }
+        .file-item.directory { color: var(--neon-cyan); }
+        .file-item.file { color: #e0e0e0; }
+        .file-item.target-file {
+            border-left: 3px solid var(--neon-green);
+            background: rgba(0, 255, 65, 0.05);
+        }
+        .file-item.selected {
+            background: rgba(0, 255, 65, 0.2);
+            border-left: 3px solid var(--neon-green);
+        }
+
+        .file-name { display: flex; align-items: center; gap: 8px; }
+        .file-icon { font-size: 14px; }
+        .file-info { font-size: 10px; color: #666; }
+
+        .file-preview {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 20, 0, 0.5);
+            border: 1px solid var(--dark-green);
+            font-size: 10px;
+            max-height: 100px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            display: none;
+        }
+
+        .quick-access {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .quick-access-btn {
+            padding: 5px 10px;
+            font-size: 10px;
+            border: 1px solid var(--dark-cyan);
+            color: var(--neon-cyan);
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        .quick-access-btn:hover { background: rgba(0, 255, 255, 0.2); }
+
+        .target-list {
+            max-height: 120px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--dark-green);
+            padding: 8px;
+            margin-top: 8px;
+            font-size: 11px;
+            display: none;
+        }
+
+        .target-item {
+            padding: 3px;
+            color: var(--neon-cyan);
+            border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+        }
+
+        .target-item:hover { background: rgba(0, 255, 65, 0.1); }
+
+        .rag-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--purple);
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        .findings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            font-size: 10px;
+        }
+
+        .finding-item {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid var(--dark-green);
+            padding: 4px;
+            color: var(--neon-cyan);
+        }
+
+        .technique-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            background: rgba(0, 255, 65, 0.2);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            font-size: 9px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .technique-tag.success { background: rgba(0, 255, 65, 0.3); }
+        .technique-tag.failed {
+            background: rgba(255, 0, 64, 0.2);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .recommendation-box {
+            background: rgba(255, 102, 0, 0.1);
+            border: 1px solid var(--orange);
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 11px;
+        }
+
+        .recommendation-box .title {
+            color: var(--orange);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: var(--dark-green); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); }
+
+        .conn-status {
+            position: fixed;
+            top: 15px; right: 15px;
+            padding: 8px 16px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            font-size: 11px;
+            z-index: 1000;
+            font-family: 'Orbitron', sans-serif;
+            border-radius: 4px;
+        }
+
+        .conn-status.online { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+        .conn-status.offline { border-color: var(--red); color: var(--red); }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 18px; letter-spacing: 2px; }
+            .header .subtitle { font-size: 9px; }
+            .control-row { flex-direction: column; }
+            input, select, textarea { width: 100%; min-width: unset; }
+            button { width: 100%; }
+            .settings-panel, .file-browser { width: 95%; padding: 15px; max-height: 90vh; }
+            .setting-item { padding: 10px; }
+            .backend-selector { flex-direction: column; width: 100%; }
+            .backend-option { width: 100%; text-align: center; }
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    <div class="conn-status offline" id="conn-status">● OFFLINE</div>
+
+    <!-- Settings Overlay -->
+    <div class="settings-overlay" id="settings-overlay" onclick="toggleSettings()"></div>
+    <div class="settings-panel" id="settings-panel">
+        <div class="settings-title">⚙️ SYSTEM SETTINGS</div>
+
+        <div class="setting-item">
+            <label class="setting-label">SQLMap Backend</label>
+            <div class="backend-selector">
+                <div class="backend-option active" id="backend-sqlmap" onclick="setBackend('sqlmap.py')">sqlmap.py (CLI)</div>
+                <div class="backend-option" id="backend-api" onclick="setBackend('sqlmapapi.py')">sqlmapapi.py (API)</div>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-row">
+                <div>
+                    <label class="setting-label" style="margin-bottom: 0;">SearXNG</label>
+                    <div class="engine-status">
+                        <span class="no-key-badge">NO API KEY REQUIRED</span>
+                    </div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="searxng-enabled" checked onchange="toggleSearchEngine('searxng')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">Brave Search API Key</label>
+            <input type="text" class="setting-input" id="brave-api-key" placeholder="Enter Brave API Key">
+            <div class="setting-row">
+                <span class="engine-status">
+                    <span class="status-dot" id="brave-dot"></span>
+                    Requires API Key
+                </span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="brave-enabled" onchange="toggleSearchEngine('brave')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">Bing Search API Key</label>
+            <input type="text" class="setting-input" id="bing-api-key" placeholder="Enter Bing API Key">
+            <div class="setting-row">
+                <span class="engine-status">
+                    <span class="status-dot" id="bing-dot"></span>
+                    Requires API Key
+                </span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="bing-enabled" onchange="toggleSearchEngine('bing')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">SerpAPI Key (Google)</label>
+            <input type="text" class="setting-input" id="serpapi-key" placeholder="Enter SerpAPI Key">
+            <div class="setting-row">
+                <span class="engine-status">
+                    <span class="status-dot" id="serpapi-dot"></span>
+                    Requires API Key
+                </span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="serpapi-enabled" onchange="toggleSearchEngine('serpapi')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">DuckDuckGo Instance URL (Optional)</label>
+            <input type="text" class="setting-input" id="duckduckgo-url" placeholder="https://html.duckduckgo.com/html/ (default)">
+            <div class="setting-row">
+                <div>
+                    <span class="no-key-badge">NO API KEY REQUIRED</span>
+                    <span class="engine-status" style="margin-left: 10px;">
+                        <span class="status-dot active" id="duckduckgo-dot"></span>
+                        Web Scraping
+                    </span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="duckduckgo-enabled" checked onchange="toggleSearchEngine('duckduckgo')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">StartPage Instance URL (Optional)</label>
+            <input type="text" class="setting-input" id="startpage-url" placeholder="https://www.startpage.com/sp/search (default)">
+            <div class="setting-row">
+                <div>
+                    <span class="no-key-badge">NO API KEY REQUIRED</span>
+                    <span class="engine-status" style="margin-left: 10px;">
+                        <span class="status-dot" id="startpage-dot"></span>
+                        Web Scraping
+                    </span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="startpage-enabled" onchange="toggleSearchEngine('startpage')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label class="setting-label">Qwant Instance URL (Optional)</label>
+            <input type="text" class="setting-input" id="qwant-url" placeholder="https://api.qwant.com/v3/search (default)">
+            <div class="setting-row">
+                <div>
+                    <span class="no-key-badge">NO API KEY REQUIRED</span>
+                    <span class="engine-status" style="margin-left: 10px;">
+                        <span class="status-dot" id="qwant-dot"></span>
+                        Web Scraping
+                    </span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="qwant-enabled" onchange="toggleSearchEngine('qwant')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-buttons">
+            <button onclick="saveSettings()">💾 Save Settings</button>
+            <button onclick="toggleSettings()">❌ Close</button>
+        </div>
+
+        <div id="search-stats"></div>
+    </div>
+
+    <!-- File Browser Overlay -->
+    <div class="file-browser-overlay" id="file-browser-overlay" onclick="toggleFileBrowser()"></div>
+    <div class="file-browser" id="file-browser">
+        <div class="file-browser-header">
+            <span class="file-browser-title">📁 LOCAL FILE BROWSER</span>
+            <button onclick="toggleFileBrowser()" style="padding: 5px 10px;">✕</button>
+        </div>
+
+        <div class="quick-access" id="quick-access"></div>
+
+        <div class="file-browser-path" id="current-path">.</div>
+
+        <div class="file-list" id="file-list"></div>
+
+        <div class="file-preview" id="file-preview">
+            <strong>Preview:</strong>
+            <div id="preview-content"></div>
+        </div>
+
+        <div class="settings-buttons" style="margin-top: 15px;">
+            <button onclick="loadSelectedFile()">📂 Load Selected File</button>
+            <button onclick="toggleFileBrowser()">❌ Cancel</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>SQLMAP Skynet | DRCrypter.ru</h1>
+            <div class="subtitle">Enumeration Mode • Target Keywords • WebSearch • Local File Browser</div>
+            <div class="stats-row">
+                <span id="memory-sessions">0 Sessions</span>
+                <span id="rag-status">RAG: Standby</span>
+                <span id="learning-status">Learning: Active</span>
+                <span id="web-search-status">WebSearch: OFF</span>
+                <span id="backend-status">Backend: sqlmap.py</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-row">
+                <input type="text" id="target-input" placeholder="Target URL" value="http://testphp.vulnweb.com/artists.php?artist=1">
+                <select id="method-input" onchange="handleMethodChange()">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                </select>
+                <input type="number" id="cycles-input" placeholder="Max Cycles" value="30" min="1" max="100">
+                <button id="btn-tor" onclick="toggleTor()">Tor: OFF</button>
+                <button id="btn-rag" class="active" onclick="toggleRag()">RAG: ON</button>
+                <button id="btn-websearch" onclick="toggleWebSearchGlobal()">WebSearch: OFF</button>
+                <button onclick="toggleSettings()">⚙️ Settings</button>
+            </div>
+
+            <div class="control-row" id="post-data-row" style="display: none;">
+                <textarea id="post-data" placeholder="POST Data (e.g., uname=admin&passwd=admin)"></textarea>
+            </div>
+
+            <div class="control-row">
+                <textarea id="headers-input" placeholder="Custom Headers (one per line)"></textarea>
+            </div>
+
+            <div class="control-row">
+                <textarea id="url-list" placeholder="Multiple URLs (one per line)..."></textarea>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button onclick="openFileBrowser()">📁 Browse Local Files</button>
+                    <button onclick="clearUrlList()">Clear</button>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <input type="text" id="cookies-input" placeholder="Cookies (optional)">
+                <input type="text" id="data-input" placeholder="Extra Data (optional)">
+                <button id="btn-start" onclick="startScan()">Initialize</button>
+                <button id="btn-stop" class="danger" onclick="stopScan()" disabled>Abort</button>
+                <button onclick="clearAll()">Clear</button>
+                <button onclick="loadMemory()">Memory</button>
+            </div>
+
+            <div class="target-list" id="target-list"></div>
+        </div>
+
+        <div class="main-grid">
+            <!-- LEFT COLUMN -->
+            <div class="left-col">
+                <!-- IMPROVED SYSTEM METRICS PANEL -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>⚡ System Metrics</span>
+                        <span class="panel-badge" id="live-badge">IDLE</span>
+                    </div>
+                    <div class="panel-content">
+                        <div class="metrics-container">
+                            <div class="metric-box">
+                                <div class="metric-value" id="stat-cycles">0</div>
+                                <div class="metric-label">Cycles</div>
+                            </div>
+                            <div class="metric-box cyan">
+                                <div class="metric-value cyan" id="stat-dbs">0</div>
+                                <div class="metric-label">Databases</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-value" id="stat-tables">0</div>
+                                <div class="metric-label">Tables</div>
+                            </div>
+                            <div class="metric-box cyan">
+                                <div class="metric-value cyan" id="stat-columns">0</div>
+                                <div class="metric-label">Columns</div>
+                            </div>
+                        </div>
+
+                        <div class="metric-box" style="margin-bottom: 15px;">
+                            <div class="metric-value" id="stat-targets" style="font-size: 24px;">0</div>
+                            <div class="metric-label">Active Targets</div>
+                        </div>
+
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 10px; padding: 8px; background: rgba(0,20,0,0.5); border-radius: 4px; font-size: 10px; color: #666; word-break: break-all;" id="current-target-display">
+                            No active target
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TARGET KEYWORDS PANEL -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>🎯 Target Keywords</span>
+                        <span class="panel-badge warning" id="target-badge">0 HITS</span>
+                    </div>
+                    <div class="panel-content">
+                        <div class="target-hits-list" id="target-hits">
+                            <div class="empty-state">No target keywords found yet...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WAF BYPASS PANEL -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>🛡️ WAF Intel</span>
+                        <span class="panel-badge">MONITOR</span>
+                    </div>
+                    <div class="panel-content" id="bypass-panel">
+                        <div class="card">
+                            <div class="card-title">Detection Status</div>
+                            <div class="card-content">Monitoring...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CENTER COLUMN -->
+            <div class="center-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>📟 Neural Terminal</span>
+                        <span class="panel-badge cyan">LIVE</span>
+                    </div>
+                    <div class="terminal" id="terminal"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="right-col">
+                <!-- RAG CONTEXT PANEL -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>🧠 RAG Context</span>
+                        <span class="panel-badge">RAG</span>
+                    </div>
+                    <div class="panel-content" id="rag-panel">
+                        <div class="card rag">
+                            <div class="card-title"><span class="rag-indicator"></span>Memory Retrieval</div>
+                            <div class="card-content">RAG ready. Similar sessions appear here.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI DECISION CORE -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>🤖 AI Decision Core</span>
+                        <span class="panel-badge">AI</span>
+                    </div>
+                    <div class="panel-content" id="ai-panel">
+                        <div class="card">
+                            <div class="card-title">Neural Core</div>
+                            <div class="card-content">Standing by...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEARNING PANEL -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>📈 Learning</span>
+                        <span class="panel-badge cyan">LEARN</span>
+                    </div>
+                    <div class="panel-content" id="learning-panel">
+                        <div class="card">
+                            <div class="card-title">Pattern Recognition</div>
+                            <div class="card-content">Learning...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FINDINGS PANEL -->
+                <div class="panel" id="findings-panel-container">
+                    <div class="panel-header">
+                        <span>📊 Findings</span>
+                        <span class="panel-badge warning">ENUM</span>
+                    </div>
+                    <div class="panel-content" id="findings-panel">
+                        <div class="card">
+                            <div class="card-title">Enumeration Status</div>
+                            <div class="card-content" id="findings-content">No findings yet...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Matrix Effect
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+
+        const chars = '01';
+        const fontSize = 14;
+        let columns = canvas.width / fontSize;
+        const drops = [];
+
+        for (let i = 0; i < columns; i++) drops[i] = Math.random() * -100;
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ff41';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            columns = canvas.width / fontSize;
+            drops.length = 0;
+            for (let i = 0; i < columns; i++) drops[i] = Math.random() * -100;
+        });
+
+        // Application State
+        let ws = null;
+        let reconnectInterval = null;
+        let torEnabled = false;
+        let ragEnabled = true;
+        let webSearchEnabled = false;
+        let currentBackend = 'sqlmap.py';
+        let seenHits = new Set();
+        let findingsData = { databases: [], tables: {}, columns: {}, dumps: [] };
+        let activeTargets = 0;
+        let selectedFile = null;
+
+        // Stats Manager Class
+        class StatsManager {
+            constructor() {
+                this.stats = { 
+                    cycles: 0, 
+                    databases: 0, 
+                    tables: 0, 
+                    columns: 0, 
+                    targets: 0,
+                    running: false 
+                };
+                this.pollInterval = null;
+                this.ws = null;
+            }
+
+            start() {
+                this.connectWebSocket();
+                this.pollInterval = setInterval(() => this.fetchStats(), 2000);
+            }
+
+            connectWebSocket() {
+                const wsUrl = `ws://${window.location.host}/ws`;
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    console.log('[Stats] Connected');
+                    document.getElementById('conn-status').textContent = '● ONLINE';
+                    document.getElementById('conn-status').className = 'conn-status online';
+                    clearInterval(reconnectInterval);
+                    this.loadMemoryStats();
+                    this.loadSearchStats();
+                    this.loadQuickAccess();
+                };
+
+                this.ws.onmessage = (e) => {
+                    try {
+                        const msg = JSON.parse(e.data);
+                        this.handleMessage(msg);
+                    } catch (err) {
+                        console.error('[Stats] Parse error:', err, 'Raw data:', e.data);
+                    }
+                };
+
+                this.ws.onclose = () => {
+                    document.getElementById('conn-status').textContent = '● OFFLINE';
+                    document.getElementById('conn-status').className = 'conn-status offline';
+                    reconnectInterval = setInterval(() => this.connectWebSocket(), 3000);
+                };
+            }
+
+            async fetchStats() {
+                try {
+                    const res = await fetch('/api/stats');
+                    if (res.status === 404) {
+                        console.warn('[Stats] /api/stats not found - check backend');
+                        return;
+                    }
+                    if (!res.ok) return;
+
+                    const data = await res.json();
+                    this.updateDisplay(data);
+                } catch (e) {
+                    // Silent fail
+                }
+            }
+
+            updateDisplay(data) {
+                this.setValue('stat-cycles', data.cycles ?? 0);
+                this.setValue('stat-dbs', data.databases ?? 0);
+                this.setValue('stat-tables', data.tables ?? 0);
+                this.setValue('stat-columns', data.columns ?? 0);
+
+                const targetCount = data.targets ?? data.target_count ?? activeTargets ?? 0;
+                this.setValue('stat-targets', targetCount);
+
+                const bar = document.getElementById('progress-bar');
+                if (bar) bar.style.width = `${Math.min(100, data.progress ?? 0)}%`;
+
+                const liveBadge = document.getElementById('live-badge');
+                if (liveBadge) {
+                    if (data.running) {
+                        liveBadge.textContent = 'LIVE';
+                        liveBadge.classList.add('active');
+                    } else {
+                        liveBadge.textContent = 'IDLE';
+                        liveBadge.classList.remove('active');
+                    }
+                }
+
+                if (data.target) {
+                    const targetDisplay = document.getElementById('current-target-display');
+                    if (targetDisplay) targetDisplay.textContent = data.target;
+                }
+
+                if (data.target_hits) {
+                    data.target_hits.forEach(hit => addTargetHit(hit));
+                }
+
+                if (data.databases !== undefined) {
+                    updateFindingsPanel(data);
+                }
+            }
+
+            setValue(id, value) {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const newVal = String(value);
+                if (el.textContent === newVal) return;
+
+                el.textContent = newVal;
+                el.classList.add('changed');
+                setTimeout(() => el.classList.remove('changed'), 200);
+            }
+
+            handleMessage(msg) {
+                const p = msg.payload || {};
+
+                switch(msg.type) {
+                    case 'status':
+                        if (p.target) activeTargets = 1;
+
+                        this.updateDisplay({
+                            cycles: p.cycle,
+                            databases: p.db_count,
+                            tables: p.table_count,
+                            columns: p.column_count,
+                            targets: activeTargets,
+                            progress: p.progress,
+                            running: p.status === 'RUNNING' || p.status === 'SCANNING',
+                            status: p.status,
+                            target: p.target
+                        });
+                        break;
+
+                    case 'terminal':
+                        addTerminalLine(p.line, p.level);
+                        break;
+
+                    case 'finding':
+                        handleFinding(p);
+                        break;
+
+                    case 'targeting':
+                        if (p.type === 'TARGET_KEYWORD_HIT') {
+                            addTargetHit({
+                                location: p.detail,
+                                column: p.detail.split('.').pop(),
+                                keywords: p.keywords || ['target']
+                            });
+                        }
+                        if (p.target_hits && Array.isArray(p.target_hits)) {
+                            p.target_hits.forEach(hit => {
+                                if (hit) addTargetHit(hit);
+                            });
+                        }
+                        break;
+
+                    case 'ai':
+                        addCard('ai-panel', 'Cycle ' + p.cycle + ' // ' + p.action, p.reason, false);
+                        break;
+
+                    case 'rag_context':
+                        const ragPanel = document.getElementById('rag-panel');
+                        if (ragPanel) {
+                            ragPanel.innerHTML = '';
+                            if (p.contexts && p.contexts.length > 0) {
+                                p.contexts.forEach(ctx => {
+                                    addCard('rag-panel', ctx.title, ctx.content, false, 'rag');
+                                });
+                            } else {
+                                addCard('rag-panel', 'No Similar Sessions', 'No historical data.', false, 'rag');
+                            }
+                        }
+                        break;
+
+                    case 'bypass_recommendation':
+                        const bypassPanel = document.getElementById('bypass-panel');
+                        if (bypassPanel) {
+                            bypassPanel.innerHTML = '';
+                            if (p.detected) {
+                                const rec = document.createElement('div');
+                                rec.className = 'recommendation-box';
+                                rec.innerHTML = `
+                                    <div class="title">⚠️ ${p.waf_type.toUpperCase()} DETECTED</div>
+                                    <div>${p.recommendation}</div>
+                                    <div style="margin-top: 5px; font-size: 10px;">
+                                        Tampers: ${p.tampers.join(', ')}<br>
+                                        Techniques: ${p.techniques.join(', ')}
+                                    </div>
+                                `;
+                                bypassPanel.appendChild(rec);
+                            } else {
+                                addCard('bypass-panel', 'Monitoring', 'No WAF detected', false);
+                            }
+                        }
+                        break;
+
+                    case 'learning':
+                        addCard('learning-panel', p.pattern, p.details, false);
+                        break;
+
+                    case 'memory':
+                        addCard('rag-panel', p.category, p.content, false, 'rag');
+                        break;
+
+                    case 'memory_stats':
+                        document.getElementById('memory-sessions').textContent = p.sessions + ' Sessions';
+                        break;
+
+                    case 'search_stats':
+                        const statsDiv = document.getElementById('search-stats');
+                        if (statsDiv) {
+                            statsDiv.innerHTML = `
+                                <strong>Search Statistics:</strong><br>
+                                Total Searches: ${p.total_searches || 0}<br>
+                                Learned Patterns: ${p.learned_patterns || 0}<br>
+                                Enabled Engines: ${(p.apis_enabled || []).join(', ') || 'None'}<br>
+                                Recent Queries: ${(p.recent_queries || []).slice(-3).join('<br>') || 'None'}
+                            `;
+                        }
+                        break;
+
+                    case 'file_browser':
+                        renderFileBrowser(p);
+                        break;
+
+                    case 'target_file_loaded':
+                        if (p.urls && p.urls.length > 0) {
+                            const urls = p.urls.map(u => u.url).join('\n');
+                            document.getElementById('url-list').value = urls;
+
+                            const listDiv = document.getElementById('target-list');
+                            listDiv.innerHTML = `<div class="target-item">Loaded ${p.count} URLs from ${p.filename}</div>`;
+                            listDiv.style.display = 'block';
+
+                            const previewDiv = document.getElementById('file-preview');
+                            const previewContent = document.getElementById('preview-content');
+                            if (previewDiv && previewContent) {
+                                previewContent.textContent = p.urls.slice(0, 5).map(u => u.url).join('\n') + (p.urls.length > 5 ? '\n...' : '');
+                                previewDiv.style.display = 'block';
+                            }
+                        }
+                        break;
+
+                    case 'quick_access':
+                        // ROBUST FIX: Handle both data structures
+                        // Case 1: p.locations is the array directly
+                        // Case 2: p is the array directly (wrong structure from server)
+                        // Case 3: p has no locations, use empty array
+                        let locations = [];
+                        if (p && Array.isArray(p.locations)) {
+                            locations = p.locations;
+                        } else if (p && Array.isArray(p)) {
+                            // Server sent array directly in payload
+                            locations = p;
+                        } else if (p && typeof p === 'object') {
+                            // Try to find any array property
+                            for (let key in p) {
+                                if (Array.isArray(p[key])) {
+                                    locations = p[key];
+                                    break;
+                                }
+                            }
+                        }
+                        renderQuickAccess({locations: locations});
+                        break;
+
+                    case 'complete':
+                        activeTargets = 0;
+                        document.getElementById('btn-start').disabled = false;
+                        document.getElementById('btn-stop').disabled = true;
+                        this.updateDisplay({ running: false, status: 'COMPLETE', targets: 0 });
+                        this.loadMemoryStats();
+                        break;
+
+                    default:
+                        console.log('[Stats] Unknown message type:', msg.type, p);
+                }
+            }
+
+
+
+            loadMemoryStats() {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({action: 'get_memory_stats'}));
+                }
+            }
+
+            loadSearchStats() {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({action: 'get_search_stats'}));
+                }
+            }
+
+            loadQuickAccess() {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({action: 'get_quick_access'}));
+                }
+            }
+        }
+
+        const statsManager = new StatsManager();
+
+        // Helper Functions
+        function addTerminalLine(line, level = 'info') {
+            const term = document.getElementById('terminal');
+            const div = document.createElement('div');
+            div.className = `terminal-line line-${level}`;
+            div.textContent = line;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+
+            while (term.children.length > 1000) {
+                term.removeChild(term.firstChild);
+            }
+        }
+
+        function addTargetHit(hit) {
+            const hitId = `${hit.location}.${hit.column}`;
+            if (seenHits.has(hitId)) return;
+            seenHits.add(hitId);
+
+            const container = document.getElementById('target-hits');
+            if (!container) return;
+
+            const empty = container.querySelector('.empty-state');
+            if (empty) empty.remove();
+
+            const div = document.createElement('div');
+            div.className = 'target-hit';
+            div.innerHTML = `
+                <span class="icon">🎯</span>
+                <span class="path">${hit.location}.${hit.column}</span>
+                <span class="keywords">${hit.keywords.slice(0, 2).join(', ')}</span>
+            `;
+
+            container.insertBefore(div, container.firstChild);
+
+            const badge = document.getElementById('target-badge');
+            if (badge) {
+                badge.textContent = `${seenHits.size} HITS`;
+            }
+        }
+
+        function handleFinding(p) {
+            if (p.type === 'DATABASE') {
+                if (!findingsData.databases.includes(p.value)) {
+                    findingsData.databases.push(p.value);
+                }
+            } else if (p.type === 'TABLES') {
+                const parts = p.value.split(':');
+                if (parts[0]) findingsData.tables[parts[0].trim()] = parseInt(parts[1]) || 0;
+            } else if (p.type === 'COLUMN') {
+                const parts = p.value.split('.');
+                if (parts.length >= 3) {
+                    const key = `${parts[0]}.${parts[1]}`;
+                    if (!findingsData.columns[key]) findingsData.columns[key] = [];
+                    findingsData.columns[key].push(parts[2]);
+                }
+            } else if (p.type === 'DUMP_SUCCESS') {
+                const parts = p.value.split('.');
+                if (parts.length >= 3) {
+                    findingsData.dumps.push({
+                        db: parts[0],
+                        table: parts[1],
+                        column: parts[2]
+                    });
+                }
+            }
+            updateFindingsDisplay();
+        }
+
+        function updateFindingsDisplay() {
+            const panel = document.getElementById('findings-content');
+            if (!panel) return;
+
+            let html = '';
+
+            if (findingsData.databases.length > 0) {
+                html += `<div style="margin-bottom: 15px;">
+                    <div style="color: var(--neon-green); font-size: 10px; text-transform: uppercase; margin-bottom: 5px;">Databases (${findingsData.databases.length})</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">`;
+                findingsData.databases.forEach(db => {
+                    html += `<span style="background: rgba(0,255,65,0.1); padding: 3px 8px; border-radius: 3px; font-size: 11px; color: var(--neon-cyan);">${escapeHtml(db)}</span>`;
+                });
+                html += `</div></div>`;
+            }
+
+            const tableCount = Object.keys(findingsData.tables).length;
+            if (tableCount > 0) {
+                html += `<div style="margin-bottom: 15px;">
+                    <div style="color: var(--neon-green); font-size: 10px; text-transform: uppercase; margin-bottom: 5px;">Tables (${tableCount})</div>`;
+                for (const [db, count] of Object.entries(findingsData.tables)) {
+                    html += `<div style="font-size: 11px; color: #888; margin-bottom: 3px;">${escapeHtml(db)}: <span style="color: var(--neon-cyan);">${count}</span> tables</div>`;
+                }
+                html += `</div>`;
+            }
+
+            const colCount = Object.values(findingsData.columns).reduce((a, b) => a + b.length, 0);
+            if (colCount > 0) {
+                html += `<div>
+                    <div style="color: var(--neon-green); font-size: 10px; text-transform: uppercase; margin-bottom: 5px;">Columns (${colCount})</div>`;
+                for (const [table, cols] of Object.entries(findingsData.columns).slice(0, 5)) {
+                    html += `<div style="font-size: 10px; color: #666; margin-bottom: 2px;">${escapeHtml(table)}: ${cols.length} cols</div>`;
+                }
+                html += `</div>`;
+            }
+
+            if (findingsData.dumps.length > 0) {
+                html += `<div style="margin-top: 15px;">
+                    <div style="color: var(--neon-green); font-size: 10px; text-transform: uppercase; margin-bottom: 5px;">Dumps (${findingsData.dumps.length})</div>`;
+                findingsData.dumps.forEach(dump => {
+                    html += `<div style="font-size: 10px; color: var(--neon-green); margin-bottom: 2px;">✓ ${escapeHtml(dump.db)}.${escapeHtml(dump.table)}.${escapeHtml(dump.column)}</div>`;
+                });
+                html += `</div>`;
+            }
+
+            if (html === '') html = 'No findings yet...';
+            panel.innerHTML = html;
+        }
+
+        function updateFindingsPanel(data) {
+            if (data.databases > 0 || data.tables > 0 || data.columns > 0) {
+                const panel = document.getElementById('findings-content');
+                let html = '';
+
+                if (data.databases > 0) {
+                    html += `<div style="margin-bottom: 10px;">
+                        <span style="color: var(--neon-green);">DBs:</span> 
+                        <span style="color: var(--neon-cyan);">${data.databases}</span>
+                    </div>`;
+                }
+                if (data.tables > 0) {
+                    html += `<div style="margin-bottom: 10px;">
+                        <span style="color: var(--neon-green);">Tables:</span> 
+                        <span style="color: var(--neon-cyan);">${data.tables}</span>
+                    </div>`;
+                }
+                if (data.columns > 0) {
+                    html += `<div>
+                        <span style="color: var(--neon-green);">Columns:</span> 
+                        <span style="color: var(--neon-cyan);">${data.columns}</span>
+                    </div>`;
+                }
+
+                if (html) panel.innerHTML = html;
+            }
+        }
+
+        function addCard(panelId, title, content, isError, extraClass) {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+
+            const card = document.createElement('div');
+            let className = 'card';
+            if (isError) className += ' error';
+            if (extraClass) className += ' ' + extraClass;
+            card.className = className;
+            card.innerHTML = `<div class="card-title">${escapeHtml(title)}</div><div class="card-content">${escapeHtml(content)}</div>`;
+
+            panel.appendChild(card);
+
+            while (panel.children.length > 50) {
+                panel.removeChild(panel.firstChild);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // UI Functions
+        function handleMethodChange() {
+            const method = document.getElementById('method-input').value;
+            document.getElementById('post-data-row').style.display = method === 'POST' ? 'flex' : 'none';
+        }
+
+        function toggleTor() {
+            torEnabled = !torEnabled;
+            const btn = document.getElementById('btn-tor');
+            btn.textContent = torEnabled ? 'Tor: ON' : 'Tor: OFF';
+            btn.className = torEnabled ? 'active' : '';
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'tor', enabled: torEnabled}));
+            }
+        }
+
+        function toggleRag() {
+            ragEnabled = !ragEnabled;
+            const btn = document.getElementById('btn-rag');
+            btn.textContent = ragEnabled ? 'RAG: ON' : 'RAG: OFF';
+            btn.className = ragEnabled ? 'active' : '';
+            document.getElementById('rag-status').textContent = ragEnabled ? 'RAG: Active' : 'RAG: Disabled';
+        }
+
+        function toggleWebSearchGlobal() {
+            webSearchEnabled = !webSearchEnabled;
+            const btn = document.getElementById('btn-websearch');
+            btn.textContent = webSearchEnabled ? 'WebSearch: ON' : 'WebSearch: OFF';
+            btn.className = webSearchEnabled ? 'active' : '';
+            document.getElementById('web-search-status').textContent = webSearchEnabled ? 'WebSearch: Active' : 'WebSearch: OFF';
+        }
+
+        function toggleSettings() {
+            document.getElementById('settings-panel').classList.toggle('active');
+            document.getElementById('settings-overlay').classList.toggle('active');
+        }
+
+        function toggleFileBrowser() {
+            document.getElementById('file-browser').classList.toggle('active');
+            document.getElementById('file-browser-overlay').classList.toggle('active');
+        }
+
+        function openFileBrowser() {
+            toggleFileBrowser();
+            browseDirectory('.');
+        }
+
+        function browseDirectory(path) {
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'browse_files', path: path}));
+            }
+        }
+
+        function renderFileBrowser(data) {
+            const pathDiv = document.getElementById('current-path');
+            const listDiv = document.getElementById('file-list');
+
+            if (data.error) {
+                pathDiv.textContent = 'Error: ' + data.error;
+                return;
+            }
+
+            pathDiv.textContent = data.current_path || '.';
+            listDiv.innerHTML = '';
+
+            if (data.contents) {
+                data.contents.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item ' + item.type;
+                    if (item.is_target) div.classList.add('target-file');
+
+                    const icon = item.type === 'directory' ? '📁' : (item.is_target ? '🎯' : '📄');
+                    const size = item.size !== null ? formatBytes(item.size) : '';
+
+                    div.innerHTML = `
+                        <div class="file-name">
+                            <span class="file-icon">${icon}</span>
+                            <span>${escapeHtml(item.name)}</span>
+                        </div>
+                        <div class="file-info">${size}</div>
+                    `;
+
+                    div.onclick = function() {
+                        if (item.type === 'directory') {
+                            browseDirectory(item.path);
+                        } else {
+                            selectFile(item.path, item.is_target);
+                        }
+                    };
+
+                    listDiv.appendChild(div);
+                });
+            }
+        }
+
+        // ROBUST FIX: renderQuickAccess with comprehensive validation
+        function renderQuickAccess(data) {
+            const container = document.getElementById('quick-access');
+            if (!container) {
+                console.error('[QuickAccess] Container not found');
+                return;
+            }
+
+            container.innerHTML = '';
+
+            // Validate data structure thoroughly
+            if (!data) {
+                console.warn('[QuickAccess] No data provided');
+                return;
+            }
+
+            // Extract locations array with multiple fallback strategies
+            let locations = null;
+
+            if (Array.isArray(data.locations)) {
+                locations = data.locations;
+            } else if (Array.isArray(data)) {
+                locations = data;
+            } else if (typeof data === 'object') {
+                // Try to find any array property that might be locations
+                for (let key in data) {
+                    if (Array.isArray(data[key]) && data[key].length > 0) {
+                        // Check if first item has name/path properties
+                        const first = data[key][0];
+                        if (first && (first.name || first.path)) {
+                            locations = data[key];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!locations || !Array.isArray(locations)) {
+                console.warn('[QuickAccess] No valid locations array found in:', data);
+                return;
+            }
+
+            if (locations.length === 0) {
+                console.log('[QuickAccess] Empty locations array');
+                return;
+            }
+
+            locations.forEach((loc, index) => {
+                if (!loc || typeof loc !== 'object') {
+                    console.warn(`[QuickAccess] Invalid location at index ${index}:`, loc);
+                    return;
+                }
+
+                if (!loc.name || !loc.path) {
+                    console.warn(`[QuickAccess] Location missing name or path at index ${index}:`, loc);
+                    return;
+                }
+
+                const btn = document.createElement('button');
+                btn.className = 'quick-access-btn';
+                btn.textContent = loc.name;
+                btn.onclick = () => browseDirectory(loc.path);
+                container.appendChild(btn);
+            });
+
+            console.log(`[QuickAccess] Rendered ${locations.length} quick access buttons`);
+        }
+
+        function selectFile(filepath, isTarget) {
+            selectedFile = filepath;
+
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+
+            if (isTarget && statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'load_target_file', filepath: filepath}));
+            }
+        }
+
+        function loadSelectedFile() {
+            if (!selectedFile) {
+                alert('Please select a file first');
+                return;
+            }
+
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'load_target_file', filepath: selectedFile}));
+            }
+            toggleFileBrowser();
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function setBackend(type) {
+            currentBackend = type;
+            document.getElementById('backend-sqlmap').className = type === 'sqlmap.py' ? 'backend-option active' : 'backend-option';
+            document.getElementById('backend-api').className = type === 'sqlmapapi.py' ? 'backend-option active' : 'backend-option';
+            document.getElementById('backend-status').textContent = 'Backend: ' + type;
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'backend', type: type}));
+            }
+        }
+
+        function toggleSearchEngine(engine) {
+            const checkbox = document.getElementById(engine + '-enabled');
+            const apiKeyInput = document.getElementById(engine + '-api-key');
+            const apiKey = apiKeyInput ? apiKeyInput.value : '';
+
+            const dot = document.getElementById(engine + '-dot');
+            if (dot) {
+                dot.className = checkbox.checked ? 'status-dot active' : 'status-dot';
+            }
+
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({
+                    action: 'web_search',
+                    api: engine,
+                    enabled: checkbox.checked,
+                    api_key: apiKey
+                }));
+            }
+        }
+
+        function saveSettings() {
+            localStorage.setItem('brave_api_key', document.getElementById('brave-api-key').value);
+            localStorage.setItem('bing_api_key', document.getElementById('bing-api-key').value);
+            localStorage.setItem('serpapi_key', document.getElementById('serpapi-key').value);
+            localStorage.setItem('duckduckgo_url', document.getElementById('duckduckgo-url').value);
+            localStorage.setItem('startpage_url', document.getElementById('startpage-url').value);
+            localStorage.setItem('qwant_url', document.getElementById('qwant-url').value);
+            localStorage.setItem('backend', currentBackend);
+
+            ['searxng', 'brave', 'bing', 'serpapi', 'duckduckgo', 'startpage', 'qwant'].forEach(engine => {
+                const cb = document.getElementById(engine + '-enabled');
+                if (cb) localStorage.setItem(engine + '_enabled', cb.checked);
+            });
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Saved!';
+            btn.style.borderColor = 'var(--neon-green)';
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.borderColor = '';
+            }, 1500);
+        }
+
+        function loadSettings() {
+            document.getElementById('brave-api-key').value = localStorage.getItem('brave_api_key') || '';
+            document.getElementById('bing-api-key').value = localStorage.getItem('bing_api_key') || '';
+            document.getElementById('serpapi-key').value = localStorage.getItem('serpapi_key') || '';
+            document.getElementById('duckduckgo-url').value = localStorage.getItem('duckduckgo_url') || '';
+            document.getElementById('startpage-url').value = localStorage.getItem('startpage_url') || '';
+            document.getElementById('qwant-url').value = localStorage.getItem('qwant_url') || '';
+
+            ['searxng', 'brave', 'bing', 'serpapi', 'duckduckgo', 'startpage', 'qwant'].forEach(engine => {
+                const cb = document.getElementById(engine + '-enabled');
+                const saved = localStorage.getItem(engine + '_enabled');
+                if (cb && saved !== null) {
+                    cb.checked = saved === 'true';
+                    const dot = document.getElementById(engine + '-dot');
+                    if (dot) {
+                        dot.className = cb.checked ? 'status-dot active' : 'status-dot';
+                    }
+                }
+            });
+
+            const savedBackend = localStorage.getItem('backend') || 'sqlmap.py';
+            setBackend(savedBackend);
+        }
+
+        function clearUrlList() {
+            document.getElementById('url-list').value = '';
+            document.getElementById('target-list').style.display = 'none';
+        }
+
+        function startScan() {
+            const singleTarget = document.getElementById('target-input').value.trim();
+            const multiTargetText = document.getElementById('url-list').value.trim();
+            const multiTargets = multiTargetText ? multiTargetText.split('\n').map(u => u.trim()).filter(u => u) : [];
+            const targets = multiTargets.length > 0 ? multiTargets : (singleTarget ? [singleTarget] : []);
+
+            if (!targets.length) {
+                alert('Please enter at least one target URL');
+                return;
+            }
+
+            activeTargets = targets.length;
+
+            const method = document.getElementById('method-input').value;
+            let postData = '';
+            let headers = document.getElementById('headers-input').value.trim();
+
+            if (method === 'POST') {
+                postData = document.getElementById('post-data').value.trim();
+                if (!postData) {
+                    alert('POST method requires data');
+                    return;
+                }
+            }
+
+            findingsData = { databases: [], tables: {}, columns: {}, dumps: [] };
+            seenHits.clear();
+            document.getElementById('target-hits').innerHTML = '<div class="empty-state">No target keywords found yet...</div>';
+            document.getElementById('target-badge').textContent = '0 HITS';
+            updateFindingsDisplay();
+
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({
+                    action: 'start',
+                    targets: targets,
+                    method: method,
+                    max_cycles: parseInt(document.getElementById('cycles-input').value) || 30,
+                    cookies: document.getElementById('cookies-input').value,
+                    data: postData || document.getElementById('data-input').value,
+                    headers: headers,
+                    tor: torEnabled,
+                    rag: ragEnabled,
+                    web_search: webSearchEnabled,
+                    backend: currentBackend
+                }));
+
+                document.getElementById('btn-start').disabled = true;
+                document.getElementById('btn-stop').disabled = false;
+
+                statsManager.setValue('stat-targets', activeTargets);
+
+                addTerminalLine(`[*] Initializing scan for ${targets.length} target(s)...`, 'info');
+
+                if (ragEnabled) {
+                    addTerminalLine('[RAG] Retrieving contexts...', 'rag');
+                }
+
+                if (headers) {
+                    addTerminalLine(`[*] Custom headers: ${headers.split('\n').length} lines`, 'info');
+                }
+            }
+        }
+
+        function stopScan() {
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'stop'}));
+            }
+            activeTargets = 0;
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            statsManager.setValue('stat-targets', 0);
+        }
+
+        function clearAll() {
+            document.getElementById('terminal').innerHTML = '';
+            document.getElementById('rag-panel').innerHTML = '<div class="card rag"><div class="card-title"><span class="rag-indicator"></span>Memory Retrieval</div><div class="card-content">RAG ready. Similar sessions appear here.</div></div>';
+            document.getElementById('bypass-panel').innerHTML = '<div class="card"><div class="card-title">Detection Status</div><div class="card-content">Monitoring...</div></div>';
+            document.getElementById('ai-panel').innerHTML = '<div class="card"><div class="card-title">Neural Core</div><div class="card-content">Standing by...</div></div>';
+            document.getElementById('learning-panel').innerHTML = '<div class="card"><div class="card-title">Pattern Recognition</div><div class="card-content">Learning...</div></div>';
+            document.getElementById('findings-content').textContent = 'No findings yet...';
+
+            findingsData = { databases: [], tables: {}, columns: {}, dumps: [] };
+            seenHits.clear();
+            activeTargets = 0;
+
+            document.getElementById('target-hits').innerHTML = '<div class="empty-state">No target keywords found yet...</div>';
+            document.getElementById('target-badge').textContent = '0 HITS';
+            document.getElementById('current-target-display').textContent = 'No active target';
+
+            ['stat-cycles', 'stat-dbs', 'stat-tables', 'stat-columns', 'stat-targets'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0';
+            });
+
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('live-badge').textContent = 'IDLE';
+            document.getElementById('live-badge').classList.remove('active');
+        }
+
+        function loadMemory() {
+            if (statsManager.ws && statsManager.ws.readyState === WebSocket.OPEN) {
+                statsManager.ws.send(JSON.stringify({action: 'load_memory'}));
+            }
+        }
+
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            statsManager.start();
+        });
+    </script>
+</body>
+</html>
