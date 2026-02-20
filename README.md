@@ -162,7 +162,7 @@ Use **Cloud AI** (OpenAI / Groq / DeepSeek / Kimi / Claude) or run with AI featu
 Open **PowerShell**:
 
 ```powershell
-git clone <YOUR_REPO_URL> sqlmap-skynet
+git clone https://github.com/drcrypterdotru/sqlmap-skynet
 cd sqlmap-skynet
 ```
 
