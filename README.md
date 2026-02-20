@@ -28,32 +28,6 @@
 
 **Goal:** higher signal, less noise, and reports real proof.
 
-## 📸 Screenshots of Feature 
-<table>
-  <tr>
-    <td><img src="screenshots/screenshot_1.png" alt="Screenshot_1"></td>
-    <td><img src="screenshots/screenshot_4.png" alt="Screenshot_4"></td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/screenshot_2.png" alt="Screenshot_2"></td>
-    <td><img src="screenshots/screenshot_3.png" alt="Screenshot_3"></td>
-  </tr>
-</table>
-
-## 🧾 Report Samples
-
-<table>
-  <tr>
-    <td><img src="screenshots/report_1.png" alt="Report 1"></td>
-    <td><img src="screenshots/report_2.png" alt="Report 2"></td>
-  </tr>
-</table>
-
-## 🎥 Demo Video
-
-[![Watch SKYNET Demo](screenshots/video.png)](https://t.me/burnwpcommunity/12026)
-
-
 ---
 
 ## workflow : Dashboard + MCP + AI + RAG
@@ -115,6 +89,32 @@ flowchart TD
 - MCP = agent/tool interface
 
 ---
+
+
+## 📸 Screenshots of Feature 
+<table>
+  <tr>
+    <td><img src="screenshots/screenshot_1.png" alt="Screenshot_1"></td>
+    <td><img src="screenshots/screenshot_4.png" alt="Screenshot_4"></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/screenshot_2.png" alt="Screenshot_2"></td>
+    <td><img src="screenshots/screenshot_3.png" alt="Screenshot_3"></td>
+  </tr>
+</table>
+
+## 🧾 Report Samples
+
+<table>
+  <tr>
+    <td><img src="screenshots/report_1.png" alt="Report 1"></td>
+    <td><img src="screenshots/report_2.png" alt="Report 2"></td>
+  </tr>
+</table>
+
+## 🎥 Demo Video
+
+[![Watch SKYNET Demo](screenshots/video.png)](https://t.me/burnwpcommunity/12026)
 
 ## Windows requirements (choose your AI mode)
 
