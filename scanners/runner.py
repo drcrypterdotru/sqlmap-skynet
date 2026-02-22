@@ -70,6 +70,8 @@ class SQLMapRunner:
         self.backend = SQLMapBackend(backend_type)
         self.backend_type = backend_type
         self.all_logs: List[str] = []
+
+        
         
         # Results tracking
         self.results = self._init_results()
@@ -1356,8 +1358,9 @@ class SQLMapRunner:
             
             self.results['report_files'] = report_paths
             
-        except Exception as e:
-            logger.error("RUNNER", f"Report generation error: {e}")
+        except:
+            pass 
+            # logger.error("RUNNER", f"Report generation error: {e}")
         
         await self.broadcast("terminal", {
             "level": "info",

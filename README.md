@@ -4,7 +4,7 @@
 
 <div align="center">
 
-  # 🧠⚡ SQLMAP SKYNET - Intelligence v1.0.0
+  # 🧠⚡ SQLMAP SKYNET - Autonomous AI v1.2.0
 
   <img src="screenshots/screenshot_0.png" alt="Screenshot_0">
 
@@ -15,6 +15,16 @@
    
 </div>
 ---
+
+
+---
+
+## 🔥 Update v1.2.0 — Autonomous AI + MCPFast Commands
+
+✅ Renamed branding from **Intelligence** → **Autonomous AI**  
+✅ Added **MCPFast (FastMCP)** command-line usage (No UI required)  
+✅ MCP supports **URL scan** and **targetlist (.txt)** scan  
+✅ Best for **Windows + Linux servers** (headless / no GUI)
 
 ## What is SQLMAP SKYNET (simple)
 
@@ -248,11 +258,11 @@ ollama run llama3.2:latest
 Start the server:
 
 ```powershell
-python main.py --host 0.0.0.0 --port 1999 --debug
+python main.py --host 0.0.0.0 --port 1337 --debug
 ```
 
 Open:
-- Dashboard: `http://127.0.0.1:1999`
+- Dashboard: `http://127.0.0.1:1337`
 
 ---
 
@@ -305,15 +315,15 @@ pip install -U fastmcp
 Run in a new PowerShell (keep dashboard in another terminal if you want both):
 
 ```powershell
-python -c "from mcp.server import mcp_server; mcp_server.mcp.run(transport='http', host='127.0.0.1', port=8000)"
+fastmcp run .\mcp\server.py:mcp --transport http --host 127.0.0.1 --port 8055
 ```
 
 Your MCP endpoint:
-- `http://127.0.0.1:8000/mcp`
+- `http://127.0.0.1:8055/mcp`
 
 ### 3) Confirm MCP tools
 ```powershell
-fastmcp list http://127.0.0.1:8000/mcp
+fastmcp list http://127.0.0.1:8055/mcp
 ```
 
 ### Does MCP work with Autonomous AI?
@@ -321,6 +331,66 @@ fastmcp list http://127.0.0.1:8000/mcp
 So **MCP calls automatically use your Autonomous AI + RAG logic** (no module changes needed).
 
 ---
+
+
+## MCPFast (FastMCP) CLI Mode — No UI (Headless / Server-Friendly)
+
+Sometimes you don’t want the dashboard (example: **Linux server / VPS / headless box**).  
+You can run SKYNET **fully from command line** using **FastMCP** — perfect when you don’t have a GUI.
+
+### 📸 MCPFast Demo Screenshots
+
+<img src="screenshots/mcp_demo_1.png" alt="MCP Demo 1" width="1200">
+
+<img src="screenshots/mcp_demo_2.png" alt="MCP Demo 2" width="1200">
+
+
+### 1) Start MCP server (HTTP)
+Open terminal in project root:
+
+```powershell
+fastmcp run .\mcp\server.py:mcp --transport http --host 127.0.0.1 --port 8055
+```
+
+MCP endpoint:
+- `http://127.0.0.1:8055/mcp`
+
+### 2) Verify MCP is working (Tools + Providers + Status)
+Run these commands (this is the fastest proof MCP is healthy):
+
+```powershell
+fastmcp list http://127.0.0.1:8055/mcp --auth none
+
+fastmcp call http://127.0.0.1:8055/mcp get_ai_providers --auth none
+fastmcp call http://127.0.0.1:8055/mcp get_scan_status --auth none
+```
+
+**What you should see**
+- Tools (3): `sqlmap_scan`, `get_scan_status`, `get_ai_providers`
+- Providers: `ollama` (recommended)
+- Status: `running=false` until you start a scan
+
+### 3) Run scan by URL (one target)
+```powershell
+fastmcp call http://127.0.0.1:8055/mcp sqlmap_scan --auth none ^
+  url="http://testphp.vulnweb.com/artists.php?artist=1" ^
+  method="GET" ^
+  max_cycles=10 ^
+  ai_provider="ollama"
+```
+
+### 4) Run scan by target list file (many targets)
+Create `target.txt` in project root (one URL per line), then:
+
+```powershell
+fastmcp call http://127.0.0.1:8055/mcp sqlmap_scan --auth none ^
+  targetlist="target.txt" ^
+  method="GET" ^
+  max_cycles=10 ^
+  ai_provider="ollama"
+```
+
+> Tip: `targetlist` should be inside the project folder for safety.
 
 ## Cloud AI setup (if your PC is weak)
 

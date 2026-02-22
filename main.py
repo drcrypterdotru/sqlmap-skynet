@@ -34,8 +34,8 @@ from utils.file_browser import file_browser
 # CONFIGURATION
 # ============================================================================
 
-APP_NAME = "sqlmap-skynet-v1.0.0"
-APP_VERSION = "2-20-2026"
+APP_NAME = "sqlmap-skynet-v1.2.0"
+APP_VERSION = "2-23-2026"
 
 # ============================================================================
 # FASTAPI APP
@@ -520,9 +520,9 @@ def print_banner(port: int, backend: str, debug: bool):
     # Build banner line by line
     lines = []
     lines.append(f"{CYAN}╔" + "═" * width + f"╗{RESET}")
-    lines.append(f"{CYAN}║{RESET}" + center(f"{BOLD}{WHITE}SQLMAP Skynet v1.0.0{RESET} {BOLD}{YELLOW}by Forums DRCrypter.ru{RESET}") + f"{CYAN}║{RESET}")
+    lines.append(f"{CYAN}║{RESET}" + center(f"{BOLD}{WHITE}SQLMAP Skynet Autonomous AI v1.2.0{RESET} {BOLD}{YELLOW}by Forums DRCrypter.ru{RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + center(f"{GREEN}Multi-Engine Search • RAG • Ollama AI{RESET}") + f"{CYAN}║{RESET}")
-    lines.append(f"{CYAN}║{RESET}" + center(f"{GREEN}Local File Browser • Error Track & Debug{RESET}") + f"{CYAN}║{RESET}")
+    lines.append(f"{CYAN}║{RESET}" + center(f"{GREEN}Multi-Target • Error Track & Debug{RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + " " * inner_width + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + left(f"  {CYAN}BACKEND:{RESET} {GREEN}{backend}{RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + left(f"  {CYAN}DEBUG:{RESET}   {RED if debug else DIM}{'Enabled' if debug else 'Disabled'}{RESET}") + f"{CYAN}║{RESET}")
@@ -534,7 +534,7 @@ def print_banner(port: int, backend: str, debug: bool):
     lines.append(f"{CYAN}║{RESET}" + left(f"    {YELLOW}•{RESET} {MAGENTA}ws://0.0.0.0:{port}/ws{RESET}             {DIM}(WebSocket){RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + " " * inner_width + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + left(f"  {BOLD}{WHITE}FEATURES:{RESET}") + f"{CYAN}║{RESET}")
-    lines.append(f"{CYAN}║{RESET}" + left(f"    {GREEN}• 100% MCP Protocol • Local File Browser • Headers/Cookies/POST{RESET}") + f"{CYAN}║{RESET}")
+    lines.append(f"{CYAN}║{RESET}" + left(f"    {GREEN}• 100% MCP Protocol • Multi-Target • Headers/Cookies/POST{RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + left(f"    {GREEN}• Web Search (7 engines) • RAG Memory • WAF Bypass AI{RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + left(f"    {GREEN}• Modular Structure • Stable Execution • Target Keywords{RESET}") + f"{CYAN}║{RESET}")
     lines.append(f"{CYAN}║{RESET}" + " " * inner_width + f"{CYAN}║{RESET}")
@@ -548,13 +548,29 @@ def main():
     parser.add_argument('--port', type=int, default=1337, help='Port to run on')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
-    
+    #=======================#
+    parser.add_argument('--mcp', action='store_true', help='Auto-start MCP server with the dashboard')
+    parser.add_argument('--mcp-host', type=str, default='127.0.0.1', help='MCP host')
+    parser.add_argument('--mcp-port', type=int, default=8055, help='MCP port')
+        
     args = parser.parse_args()
+
+    
     
     # Backend is hardcoded to sqlmap.py
     global CURRENT_BACKEND
     CURRENT_BACKEND = "sqlmap.py"
 
+    if args.mcp:
+        import threading
+
+        def _run_mcp():
+            # IMPORTANT: your mcp/server.py must expose `mcp` at module level
+            from mcp.server import mcp
+            mcp.run(transport="http", host=args.mcp_host, port=args.mcp_port)
+
+        threading.Thread(target=_run_mcp, daemon=True).start()
+        print(f"[MCP] ✅ Running on http://{args.mcp_host}:{args.mcp_port}/mcp")
     
     # Configure logging
     if args.debug:

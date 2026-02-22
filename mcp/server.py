@@ -1,134 +1,18 @@
-"""
-MCP Server with Automatic Fallback
-Uses official SDK if available, otherwise uses compatible mock / inline MCP
-"""
-
 import json
 import os
 import asyncio
 import sys
-import re
 from typing import Dict
 from datetime import datetime
 from pathlib import Path
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
 
-# Try official MCP SDK first, then newer/alternate layouts, then fall back.
-# Keep console noise low by default. Set MCP_DEBUG=1 to see detailed import errors.
-_MCP_DEBUG = os.getenv("MCP_DEBUG", "").strip() in ("1", "true", "yes", "on")
 
-def _mcp_debug(msg: str):
-    if _MCP_DEBUG:
-        print(msg)
 
-MCP_AVAILABLE = False
 
-# 1) Official MCP Python SDK (FastMCP 1.x) layout
-try:
-    from mcp.server.fastmcp import FastMCP  # type: ignore
-    from mcp.types import TextContent, LoggingLevel  # type: ignore
-    from mcp.server.sse import SseServerTransport  # type: ignore
-    MCP_AVAILABLE = True
-    _mcp_debug("[MCP] ✅ Official SDK loaded (mcp.server.fastmcp)")
-except Exception as e1:
-    _mcp_debug(f"[MCP] ⚠️ Official SDK import failed: {e1!r}")
-
-    # 2) Alternate layout seen in some guides
-    try:
-        from mcp.server import FastMCP  # type: ignore
-        try:
-            from mcp.types import TextContent, LoggingLevel  # type: ignore
-        except Exception:
-            TextContent = None  # type: ignore
-            LoggingLevel = None  # type: ignore
-
-        try:
-            from mcp.server.sse import SseServerTransport  # type: ignore
-        except Exception:
-            SseServerTransport = None  # type: ignore
-
-        MCP_AVAILABLE = True
-        _mcp_debug("[MCP] ✅ SDK loaded (mcp.server)")
-    except Exception as e2:
-        _mcp_debug(f"[MCP] ⚠️ mcp.server import failed: {e2!r}")
-
-        # 3) FastMCP standalone package (common in newer ecosystem)
-        try:
-            from fastmcp import FastMCP  # type: ignore
-            TextContent = None  # type: ignore
-            LoggingLevel = None  # type: ignore
-            SseServerTransport = None  # type: ignore
-            MCP_AVAILABLE = True
-            _mcp_debug("[MCP] ✅ FastMCP loaded (fastmcp)")
-        except Exception as e3:
-            _mcp_debug(f"[MCP] ⚠️ fastmcp import failed: {e3!r}")
-
-# 4) Project-local mock implementation (optional)
-if not MCP_AVAILABLE:
-    try:
-        from mock_mcp import FastMCP, TextContent, LoggingLevel, SseServerTransport  # type: ignore
-        MCP_AVAILABLE = True
-        _mcp_debug("[MCP] ✅ Project mock MCP loaded (mock_mcp)")
-    except Exception as e4:
-        _mcp_debug(f"[MCP] ⚠️ mock_mcp import failed: {e4!r}")
-
-# 5) Minimal inline implementation (always available)
-if not MCP_AVAILABLE:
-    _mcp_debug("[MCP] 🔄 Using inline minimal implementation")
-
-    class TextContent:
-        def __init__(self, text: str):
-            self.type = "text"
-            self.text = text
-
-    class LoggingLevel:
-        DEBUG = "debug"
-        INFO = "info"
-        WARNING = "warning"
-        ERROR = "error"
-
-    class FastMCP:
-        def __init__(self, name: str):
-            self.name = name
-            self._tools = {}
-            self._resources = {}
-            self._mcp_server = self
-
-        def tool(self):
-            def decorator(func):
-                self._tools[func.__name__] = func
-                return func
-            return decorator
-
-        def resource(self, uri: str):
-            def decorator(func):
-                self._resources[uri] = func
-                return func
-            return decorator
-
-        async def call_tool(self, name: str, arguments: Dict) -> str:
-            if name not in self._tools:
-                return json.dumps({"error": f"Tool '{name}' not found"})
-            try:
-                func = self._tools[name]
-                result = await func(**arguments) if asyncio.iscoroutinefunction(func) else func(**arguments)
-                return result if isinstance(result, str) else json.dumps(result)
-            except Exception as e:
-                return json.dumps({"error": str(e)})
-
-        def get_tools_list(self):
-            return list(self._tools.keys())
-
-    class SseServerTransport:
-        def __init__(self, endpoint: str):
-            self.endpoint = endpoint
-
-    MCP_AVAILABLE = True
-    _mcp_debug("[MCP] ✅ Inline implementation loaded")
-
-# Core imports with encoding fix for Windows
+# # Core imports with encoding fix for Windows
 import io
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -145,7 +29,8 @@ except ImportError:
         def warning(self, component, message): 
             print(f"[WARN] [{component}] {message}")
         def debug(self, component, message): 
-            pass
+            print(f"[DBG] [{component}] {message}")
+            
     logger = SimpleLogger()
 
 try:
@@ -166,10 +51,19 @@ try:
 except ImportError:
     SQLMapRunner = None
 
+try:
+    from mcp.server.fastmcp import FastMCP  # type: ignore
+    from mcp.types import TextContent, LoggingLevel  # type: ignore
+    from mcp.server.sse import SseServerTransport  # type: ignore
+    MCP_AVAILABLE = True
+    logger.info("[MCP]", "Official SDK loaded (mcp.server.fastmcp)")
+except Exception as e1:
+    logger.info("[MCP]", f"Official SDK import failed: {e1}")
+
 # Configuration
 MCP_CONFIG = {
     "server_name": "skynet-mcp-server",
-    "protocol_version": "2024-11-05",
+    "protocol_version": "2-23-2026",
     "max_retries": 3,
     "timeout": 300
 }
@@ -240,7 +134,8 @@ class SkynetMCPServer:
 
         @self.mcp.tool()
         async def sqlmap_scan(
-            url: str,
+            url: str = "",
+            targetlist: str = "", #Target-list .txt
             method: str = "GET",
             data: str = "",
             cookies: str = "",
@@ -249,32 +144,63 @@ class SkynetMCPServer:
             tor: bool = False,
             rag: bool = True,
             web_search: bool = False,
-            ai_provider: str = "auto"
-        ) -> str:
+            ai_provider: str = "auto",
+            debug: bool = False
+        ) -> dict:
             """
-            Run SQLMap scan with AI enhancement.
+            Run SQLMap scan with AI Autonomous.
             """
             if not SQLMapRunner:
-                return json.dumps({"error": "SQLMapRunner not available"}, indent=2)
+                # return json.dumps({"error": "SQLMapRunner not available"}, indent=2)
+                return {"ok": False, "error": "SQLMapRunner not available"}
+                    
+            # Target : url OR targetlist
+            def targets_from_files(p: str) -> list[str]:
+                fp = Path(p)
+                if not fp.is_absolute():
+                    fp = (ROOT / fp).resolve()
+                else:
+                    fp = fp.resolve()
+
+                if ROOT not in fp.parents and fp != ROOT:
+                    raise ValueError("targetlist must be inside the project folder")
+
+                if not fp.exists():
+                    raise FileNotFoundError(f"targetlist file not found: {fp}")
+
+                lines = fp.read_text(encoding="utf-8", errors="ignore").splitlines()
+                urls: list[str] = []
+                seen: set[str] = set()
+
+                for line in lines:
+                    s = line.strip()
+                    if not s or s.startswith("#"):
+                        continue
+                    s = s.rstrip("/")
+                    if s not in seen:
+                        seen.add(s)
+                        urls.append(s)
+
+                return urls
+
+            # Decide targets
+            if targetlist and targetlist.strip():
+                urls = targets_from_files(targetlist.strip())
+            elif url and url.strip():
+                urls = [url.strip().rstrip("/")]
+            else:
+                return {"ok": False, "error": "Provide url or targetlist (.txt)"}
+
+            if not urls:
+                return {"ok": False, "error": "No valid targets found"}
 
             try:
                 runner = SQLMapRunner("sqlmap.py")
                 state.runner = runner
                 state.running = True
 
-                if ai_provider != "auto":
-                    # Keep your custom logic if runner.ai exists
-                    try:
-                        runner.ai.cloud_ai.available_providers = (
-                            [ai_provider]
-                            if ai_provider in runner.ai.cloud_ai.available_providers
-                            else runner.ai.cloud_ai.available_providers
-                        )
-                    except Exception:
-                        pass
-
                 await runner.run_multiple(
-                    urls=[url],
+                    urls=urls,  # ✅ IMPORTANT
                     method=method,
                     cookies=cookies,
                     max_cycles=max_cycles,
@@ -284,48 +210,84 @@ class SkynetMCPServer:
                 )
 
                 result = {
-                    "target": runner.results.get('target', url),
-                    "status": runner.results.get('status', 'UNKNOWN'),
-                    "injection_found": runner.results.get('injection_found', False),
-                    "databases": runner.results.get('databases', []),
-                    "tables": runner.results.get('tables', {}),
-                    "columns_count": len(runner.results.get('columns', {})),
-                    "cycles": runner.results.get('cycles', 0),
-                    "timestamp": datetime.now().isoformat()
+                    "targets_count": len(urls),
+                    "first_target": urls[0],
+                    "status": runner.results.get("status", "UNKNOWN"),
+                    "injection_found": runner.results.get("injection_found", False),
+                    "databases": runner.results.get("databases", []),
+                    "tables": runner.results.get("tables", {}),
+                    "columns_count": len(runner.results.get("columns", {}) or {}),
+                    "cycles": runner.results.get("cycles", 0),
+                    "timestamp": datetime.now().isoformat(),
                 }
 
                 state.running = False
-                return json.dumps(result, indent=2)
+                return {"ok": True, **result}
 
             except Exception as e:
                 state.running = False
-                return json.dumps({"error": str(e)}, indent=2)
+                if debug:
+                    import traceback
+                    return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+                return {"ok": False, "error": str(e)}
+                            
 
         @self.mcp.tool()
-        async def get_scan_status() -> str:
-            """Get current scan status"""
+        # async def get_scan_status() -> str:
+        #     """Get current scan status"""
+        #     try:
+        #         runner = getattr(state, "runner", None)
+        #         return json.dumps({
+        #             "running": bool(getattr(state, "running", False)),
+        #             "has_runner": runner is not None,
+        #             "progress": getattr(runner, "progress", None) if runner else None,
+        #             "results": getattr(runner, "results", None) if runner else None,
+        #         }, indent=2)
+        #     except Exception as e:
+        #         return json.dumps({"error": str(e)}, indent=2)
+
+        @self.mcp.tool()
+        async def get_scan_status(include_logs: bool = False, logs_limit: int = 50) -> dict:
+           
             try:
+                # If your state_manager has the rich method, use it
+                if hasattr(state, "get_scan_status"):
+                    return state.get_scan_status(include_logs=include_logs, logs_limit=logs_limit)  # type: ignore
+
                 runner = getattr(state, "runner", None)
-                return json.dumps({
+                resp = {
                     "running": bool(getattr(state, "running", False)),
                     "has_runner": runner is not None,
                     "progress": getattr(runner, "progress", None) if runner else None,
                     "results": getattr(runner, "results", None) if runner else None,
-                }, indent=2)
+                }
+
+                if include_logs and hasattr(state, "get_events"):
+                    resp["events"] = state.get_events(logs_limit)  # type: ignore
+
+                return resp
+
             except Exception as e:
-                return json.dumps({"error": str(e)}, indent=2)
+                return {"ok": False, "error": str(e)}
 
         @self.mcp.tool()
-        def get_ai_providers() -> str:
+        # def get_ai_providers() -> str:
+        #     """List available AI providers"""
+        #     return json.dumps({
+        #         "available": [k for k, v in self.cloud_ai_status.items() if v],
+        #         "recommended": self._get_recommended_provider()
+        #     }, indent=2)
+         
+        def get_ai_providers() -> dict:
             """List available AI providers"""
-            return json.dumps({
+            return {
                 "available": [k for k, v in self.cloud_ai_status.items() if v],
                 "recommended": self._get_recommended_provider()
-            }, indent=2)
-
+            }
         # Debug: tool registry size
         try:
-            count = len(getattr(self.mcp, "_tools", {}))
+            # count = len(getattr(self.mcp, "_tools", {}))
+            count = len(self.get_tools_list())
         except Exception:
             count = 0
         # FIX: Use two arguments
@@ -375,6 +337,9 @@ class SkynetMCPServer:
 
  
 mcp_server = SkynetMCPServer()
+mcp = mcp_server.mcp
+app = mcp
+server = mcp
 
 # # Test if run directly
 # if __name__ == "__main__":
@@ -392,3 +357,4 @@ mcp_server = SkynetMCPServer()
 #         print(f"\nTest result: {result}")
 
 #     asyncio.run(test())
+
