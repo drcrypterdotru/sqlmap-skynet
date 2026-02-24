@@ -661,6 +661,10 @@ Where your outputs go:
 
 ---
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=drcrypterdotru/sqlmap-skynet&type=date&legend=top-left)](https://www.star-history.com/#drcrypterdotru/sqlmap-skynet&type=date&legend=top-left)
+
 ## Community & Resources
 
 <div align="center">
@@ -683,6 +687,8 @@ Where your outputs go:
   More tools, resources, and updates are shared on the website + community.
 
 </div>
+
+
 
 ---
 
